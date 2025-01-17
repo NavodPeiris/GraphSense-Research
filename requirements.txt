@@ -1,0 +1,8 @@
+pandas
+tqdm
+numpy
+networkx
+matplotlib
+umap
+node2vec
+umap-learn[plot]
