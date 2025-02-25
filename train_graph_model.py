@@ -200,5 +200,5 @@ def word_completion(directory_path: str):
 
 
 # Example usage
-directory_path = "dataset/"  # Replace with your folder path
+directory_path = "test/"  # Replace with your folder path
 line_completion(directory_path)

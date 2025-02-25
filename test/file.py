@@ -264,6 +264,7 @@ def get_divisors(n):
     for divisor in range(1, n + 1):
         if n % divisor == 0:
             ans.append(divisor)
+            print(ans)
 
     assert ans[0] == 1 and ans[len(ans) - 1] == n, "Error in function getDivisiors(...)"
     return ans
