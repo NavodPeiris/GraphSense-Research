@@ -55,7 +55,7 @@ def infer_graph_model_faiss(line, top_k=10):
     # Retrieve similar lines using direct indexing
     similar_lines = [idx_to_line.get(struct.pack("i", idx)).decode() for idx in indices[0]]
     similar_lines = similar_lines[1:]   # remove top vector as it is same as query vector
-    return similar_lines
+    print(similar_lines)
     
 
 # Lists to store memory usage and timestamps
@@ -66,6 +66,9 @@ execution_time = 0
 consumed_memory = 0
 
 if __name__ == "__main__":
+    process = psutil.Process(os.getpid())
+    before = process.memory_info().rss
+    
     index = faiss.read_index("artifacts/faiss_index.bin")
 
     opts = Option()
@@ -82,6 +85,40 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print("The PCA model file was not found. Ensure it is available for OOV handling")
 
-    similar_lines = infer_graph_model_faiss("def get_word_pattern(word: str) -> str:")
-    print(similar_lines)
-        
+    for i in range(10):
+        # Start measuring time
+        start_time = time.time()
+        infer_graph_model_faiss("for src,des in required_edges:")
+        # Calculate execution time
+        exec_time = round(time.time() - start_time, 4)
+        execution_time = execution_time + exec_time
+        after = process.memory_info().rss
+        mem = round((after - before) / 10**6, 4)
+        consumed_memory = consumed_memory + mem
+
+        timestamps.append(i + 1)  # Iteration number as timestamp
+        memory_usage.append(mem)
+        execution_times.append(exec_time)
+
+    print(f"average memory usage: {round(consumed_memory/10, 4)} MB")
+    print(f"average execution time: {round(execution_time/10, 4)} seconds")
+
+    # Plot memory usage
+    plt.figure(figsize=(8, 5))
+    plt.plot(timestamps, memory_usage, marker='o', linestyle='-', color='b', label='Memory Usage (MB)')
+    plt.xlabel("Iteration")
+    plt.ylabel("Memory Used (MB)")
+    plt.title("Memory Usage Over Iterations")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # Plot execution time
+    plt.figure(figsize=(8, 5))
+    plt.plot(timestamps, execution_times, marker='o', linestyle='-', color='b', label='Execution Time (s)')
+    plt.xlabel("Iteration")
+    plt.ylabel("Execution Time (s)")
+    plt.title("Execution Time Over Iterations")
+    plt.legend()
+    plt.grid(True)
+    plt.show()

@@ -1,8 +1,9 @@
-pandas
-tqdm
 numpy
-networkx
-matplotlib
-umap
-node2vec
-umap-learn[plot]
+pecanpy
+gensim
+psutil
+onnx
+onnxruntime-gpu
+scikit-learn
+faiss-cpu
+rocksdb-py

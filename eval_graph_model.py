@@ -1,4 +1,3 @@
-import psutil
 import os
 import time
 import matplotlib.pyplot as plt
@@ -65,6 +64,9 @@ execution_times = []
 execution_time = 0
 consumed_memory = 0
 
+test_lines = []
+correct_next_lines = []
+
 if __name__ == "__main__":
     index = faiss.read_index("artifacts/faiss_index.bin")
 
@@ -82,6 +84,38 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print("The PCA model file was not found. Ensure it is available for OOV handling")
 
-    similar_lines = infer_graph_model_faiss("def get_word_pattern(word: str) -> str:")
-    print(similar_lines)
-        
+    edg_file_path = "output_dataset.edg"  # Change this to your actual file path
+
+    # Read the .edg file and parse the values
+    with open(edg_file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("‖")  # Split using the delimiter
+            if len(parts) >= 2:
+                test_lines.append(parts[0])  # Current line
+                correct_next_lines.append(parts[1])  # Next line
+
+    print(f"Loaded {len(test_lines)} test lines and {len(correct_next_lines)} correct next lines.")
+
+    top1_score = 0
+    top3_score = 0
+    top10_score = 0
+
+    for i in range(len(test_lines)):
+        similar_lines = infer_graph_model_faiss(test_lines[i])
+        correct_next_line = correct_next_lines[i]
+        for j in range(len(similar_lines)):
+            if(similar_lines[j] == correct_next_line):
+                if j == 0:  # Top 1
+                    top1_score += 1
+                    top3_score += 1
+                    top10_score += 1
+                elif j <= 2:  # Top 3
+                    top3_score += 1
+                    top10_score += 1
+                elif j <= 9:  # Top 10
+                    top10_score += 1
+                break
+    
+    print("top-1 accuracy = ", top1_score / len(test_lines))
+    print("top-3 accuracy = ", top3_score / len(test_lines))
+    print("top-10 accuracy = ", top10_score / len(test_lines))

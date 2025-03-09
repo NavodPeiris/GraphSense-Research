@@ -3,6 +3,27 @@ from math import sqrt
 from maths.greatest_common_divisor import gcd_by_iterative
 
 def is_prime(number: int) -> bool:
+    """
+    comment1
+    comment2
+    comment3
+    """ 
+
+    '''
+    comment4
+    comment5
+    comment6
+    ''' 
+
+    # comment7
+    # comment8
+    #comment comment again9
+
+    // C++ comment
+    /*
+    c++ block comment
+    c++ block comment2
+    */
 
     assert isinstance(number, int) and (number >= 0), (
         "'number' must been an int and positive"
@@ -264,7 +285,6 @@ def get_divisors(n):
     for divisor in range(1, n + 1):
         if n % divisor == 0:
             ans.append(divisor)
-            print(ans)
 
     assert ans[0] == 1 and ans[len(ans) - 1] == n, "Error in function getDivisiors(...)"
     return ans

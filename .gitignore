@@ -1,2 +1,7 @@
 __pycache__
 env
+small_model
+large_model
+shards
+large_dataset
+artifacts
