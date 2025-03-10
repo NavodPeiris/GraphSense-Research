@@ -270,7 +270,7 @@ def line_completion(directory_path: str):
         worker_cores = num_cores
 
     model = Word2Vec(
-        vector_size=256, window=5, min_count=1, workers=worker_cores, sg=1, hs=1
+        vector_size=128, window=5, min_count=1, workers=worker_cores, sg=1, hs=1
     )
 
     first_file = True
