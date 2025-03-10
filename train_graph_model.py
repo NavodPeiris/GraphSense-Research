@@ -223,29 +223,6 @@ def line_completion(directory_path: str):
     output_csv_path = "output_dataset.edg"
     datagen_line(input_files, output_csv_path)
 
-    '''
-    graph = pd.read_csv(output_csv_path, delimiter='‖')
-
-    edge_list = [[x[0], x[1], x[2]] for x in graph.to_numpy()]
-
-    G = nx.Graph()
-    G.add_weighted_edges_from(edge_list)
-
-    # Draw the graph
-    plt.figure(figsize=(10, 7))
-    pos = nx.spring_layout(G)  # Layout for better visualization
-
-    # Draw nodes and edges
-    nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=500, font_size=10)
-
-    # Draw edge labels (weights)
-    edge_labels = {(u, v): f"{w:.2f}" for u, v, w in G.edges(data="weight")}
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=9)
-
-    plt.title("Graph Visualization with Weights")
-    plt.show()
-    '''
-    
     g = pecanpy.SparseOTF(p=1, q=0.5, workers=-1, verbose=True, extend=True)
 
     try:

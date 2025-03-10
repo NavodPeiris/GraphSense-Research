@@ -1,23 +1,25 @@
+#### Training Architecture
+
+![architecture](graphsense_training_architecture.png) 
+
+#### Inference Architecture
+
+![architecture](graphsense_inference_architecture.png) 
+
 #### gpt2-medium model (Fine-tuned on Python Algorithms dataset)
 ```
 model size: 1.44 GB   
-avg inference time: 8 seconds 
+avg inference time (CPU): 8 seconds 
+avg inference time (GPU): 2.2662 seconds
 avg memory usage: 1800 MB 
 ```
 
 #### GraphSense (trained on Python Algorithms dataset)
 ```  
 model size: 13.9 MB
-avg inference time: 0.0079 seconds 
+avg inference time (CPU): 0.0079 seconds 
 avg memory usage: 277.8194 MB 
 ``` 
-
-#### accuracy of gpt2-medium model
-```
-top-1 accuracy =  0.3694327048114434
-top-3 accuracy =  0.6660029258777633
-top-10 accuracy =  0.7574772431729518
-```
 
 #### accuracy of GraphSense (vector size: 128)
 | Epochs | Walks | Length | Window | Top-1 Accuracy | Top-3 Accuracy | Top-10 Accuracy |
@@ -32,7 +34,7 @@ top-10 accuracy =  0.7574772431729518
 
 
 
-#### scalability of GraphSense (vector size: 128)
+#### scalability of GraphSense (CPU) (vector size: 128)
 ```
 vocabulary = 100,000
 average memory usage: 273.777 MB

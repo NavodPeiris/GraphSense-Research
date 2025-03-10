@@ -3,9 +3,13 @@ import psutil
 import os
 import time
 import matplotlib.pyplot as plt
+import torch
 
 tokenizer = None
 model = None
+
+# Check if GPU is available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def infer_gpt_model():
     # Specify whether to use CPU
@@ -15,7 +19,7 @@ def infer_gpt_model():
 
     # Move model to CPU if required
     if use_cpu:
-        model.to("cpu")
+        model.to(device)
 
     # Prepare input
     input_ids = tokenizer.encode("<python> " + context,
@@ -23,7 +27,7 @@ def infer_gpt_model():
         "<java> " + context, return_tensors='pt')
 
     # Generate output
-    outputs = model.generate(input_ids=input_ids.to("cpu") if use_cpu else input_ids,
+    outputs = model.generate(input_ids=input_ids.to(device) if use_cpu else input_ids,
                             max_length=128,
                             temperature=0.7,
                             num_return_sequences=1)
