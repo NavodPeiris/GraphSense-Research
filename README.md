@@ -8,7 +8,7 @@
 
 #### gpt2-medium model (Fine-tuned on Python Algorithms dataset)
 ```
-model size: 1.44 GB   
+artifacts size: 1.44 GB   
 avg inference time (CPU): 8 seconds 
 avg inference time (GPU): 2.2662 seconds
 avg memory usage: 1800 MB 
@@ -16,7 +16,7 @@ avg memory usage: 1800 MB
 
 #### GraphSense (trained on Python Algorithms dataset)
 ```  
-model size: 13.9 MB
+artifacts size: 13.9 MB
 avg inference time (CPU): 0.0079 seconds 
 avg memory usage: 277.8194 MB 
 ``` 
