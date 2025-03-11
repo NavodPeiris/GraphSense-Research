@@ -65,23 +65,22 @@ execution_times = []
 execution_time = 0
 consumed_memory = 0
 
-if __name__ == "__main__":
-    index = faiss.read_index("artifacts/faiss_index.bin")
+index = faiss.read_index("artifacts/faiss_index.bin")
 
-    opts = Option()
-    opts.create_if_missing(False)
+opts = Option()
+opts.create_if_missing(False)
 
-    line_to_idx = rocksdbpy.open('artifacts/line_to_idx.db', opts)
-    idx_to_line = rocksdbpy.open('artifacts/idx_to_line.db', opts)
-    txt_embed_index = faiss.read_index("artifacts/faiss_txt_embed_index.bin")
-    txt_embed_model = TextEmbedding('onnx-models/all-MiniLM-L6-v2-onnx')  # embed text for OOV handling
+line_to_idx = rocksdbpy.open('artifacts/line_to_idx.db', opts)
+idx_to_line = rocksdbpy.open('artifacts/idx_to_line.db', opts)
+txt_embed_index = faiss.read_index("artifacts/faiss_txt_embed_index.bin")
+txt_embed_model = TextEmbedding('onnx-models/all-MiniLM-L6-v2-onnx')  # embed text for OOV handling
 
-    try:
-        with open('artifacts/pca_model.pkl', 'rb') as file:
-            loaded_pca = pickle.load(file)
-    except FileNotFoundError:
-        print("The PCA model file was not found. Ensure it is available for OOV handling")
+try:
+    with open('artifacts/pca_model.pkl', 'rb') as file:
+        loaded_pca = pickle.load(file)
+except FileNotFoundError:
+    print("The PCA model file was not found. Ensure it is available for OOV handling")
 
-    similar_lines = infer_graph_model_faiss("def get_word_pattern(word: str) -> str:")
-    print(similar_lines)
+similar_lines = infer_graph_model_faiss("primes = prime_factorization(number)")
+print(similar_lines)
         

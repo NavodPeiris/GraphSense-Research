@@ -2,15 +2,6 @@ import os
 import csv
 from typing import List
 from collections import Counter
-import joblib
-import pandas as pd
-import networkx as nx
-import matplotlib.pyplot as plt
-from node2vec import Node2Vec
-import duckdb
-import umap
-import umap.plot
-from mpl_toolkits.mplot3d import Axes3D
 from pecanpy import pecanpy
 from gensim.models import Word2Vec
 import numpy as np
@@ -19,6 +10,13 @@ import sys
 import faiss
 import multiprocessing
 import gc
+from sklearn.decomposition import PCA
+import pickle
+from light_embed import TextEmbedding
+import sys
+from rocksdbpy import Option
+import rocksdbpy
+import struct
 
 def is_comment_or_empty(line: str, in_block_comment: bool) -> (bool, bool):
     """Check if a line is a comment or part of a multi-line comment."""
@@ -55,12 +53,12 @@ def is_comment_or_empty(line: str, in_block_comment: bool) -> (bool, bool):
     return False, in_block_comment
 
 
-def get_python_files_in_directory(directory_path: str) -> List[str]:
+def get_code_files_in_directory(directory_path, extension):
     """Get all Python files in a directory, including subdirectories."""
     python_files = []
     for root, _, files in os.walk(directory_path):
         for file in files:
-            if file.endswith(".py"):
+            if file.endswith(extension):
                 python_files.append(os.path.join(root, file))
     return python_files
 
@@ -208,6 +206,99 @@ def shard_edg_file(file_path, max_edges=100000, delimiter="‖"):
     print(f"Sharding complete. {file_count} files created.")
 
 
+# Function to delete the RocksDB database if it exists
+def delete_db_if_exists(db_path):
+    if os.path.exists(db_path):
+        print(f"Deleting existing database at {db_path}")
+        # Remove the database directory (RocksDB stores files in a folder)
+        os.remove(db_path)
+
+
+def faiss_rocksdb_dump(model):
+    os.makedirs("artifacts", exist_ok=True)
+
+    try:
+        # Delete the existing databases if they exist
+        delete_db_if_exists("artifacts/line_to_idx.db")
+        delete_db_if_exists("artifacts/idx_to_line.db")
+    except Exception as err:
+        print("Permission Denied: please delete folders artifacts/line_to_idx.db and artifacts/idx_to_line.db manually")
+        sys.exit(1)
+
+    txt_embed_model = TextEmbedding('onnx-models/all-MiniLM-L6-v2-onnx')  # embed text for OOV handling
+
+    # Load the full vectors
+    line_vectors = model.wv.vectors
+
+    # Get total vocabulary size
+    total_lines = len(line_vectors)
+
+    print(f"Total code lines in vocabulary: {total_lines}")
+
+    # Select the top N most frequent lines
+    top_n = 1000000
+    top_lines = model.wv.index_to_key[:top_n]
+
+    # Create a list of vectors for FAISS
+    vectors = []
+    opts = Option()
+    opts.create_if_missing(True)
+
+    line_to_idx = rocksdbpy.open('artifacts/line_to_idx.db', opts)
+    idx_to_line = rocksdbpy.open('artifacts/idx_to_line.db', opts)
+
+    idx = 0
+    for line in top_lines:
+        vector = line_vectors[model.wv.key_to_index[line]]
+        line_to_idx.set(line.encode(), struct.pack("i", idx))
+        idx_to_line.set(struct.pack("i", idx), line.encode())
+        vectors.append(vector)
+        idx += 1
+
+    # Convert the list of vectors into a NumPy array
+    vectors_for_faiss = np.array(vectors, dtype=np.float16)
+
+    print(vectors_for_faiss.shape)
+
+    # Create a FAISS index (for example, using L2 distance)
+    index = faiss.IndexFlatL2(vectors_for_faiss.shape[1])  # Using L2 distance
+    index = faiss.IndexScalarQuantizer(vectors_for_faiss.shape[1], faiss.ScalarQuantizer.QT_fp16)
+
+    # Add vectors to the FAISS index
+    index.add(vectors_for_faiss)
+
+    # Save the FAISS index
+    faiss.write_index(index, 'artifacts/faiss_index.bin')
+
+    # generate text embeddings for OOV handling
+    txt_embeddings = txt_embed_model.encode(top_lines)
+
+    if txt_embeddings.shape[0] > vectors_for_faiss.shape[1]:
+        # Reduce the dimensionality to 128 dimensions using PCA
+        pca = PCA(n_components=vectors_for_faiss.shape[1])
+        reduced_txt_embeddings = pca.fit_transform(txt_embeddings)
+        # Save the PCA model for dimensionality reduction
+        with open('artifacts/pca_model.pkl', 'wb') as file:
+            pickle.dump(pca, file)
+        txt_embeddings_for_faiss = reduced_txt_embeddings.astype(np.float16)
+    else:
+        txt_embeddings_for_faiss = txt_embeddings.astype(np.float16)
+
+    print(txt_embeddings_for_faiss.shape)
+
+    # Create a FAISS index for txt embeddings
+    txt_embed_index = faiss.IndexFlatL2(txt_embeddings_for_faiss.shape[1])  # Using L2 distance
+    txt_embed_index = faiss.IndexScalarQuantizer(txt_embeddings_for_faiss.shape[1], faiss.ScalarQuantizer.QT_fp16)
+
+    # Add vectors to the FAISS index
+    txt_embed_index.add(txt_embeddings_for_faiss)
+
+    # Save the FAISS index
+    faiss.write_index(txt_embed_index, 'artifacts/faiss_txt_embed_index.bin')
+
+    print("FAISS index and RocksDB stores saved successfully!")
+
+
 def get_edg_files_in_directory(directory_path="shards") -> List[str]:
     """Get all Python files in a directory, including subdirectories."""
     edg_files = []
@@ -218,8 +309,27 @@ def get_edg_files_in_directory(directory_path="shards") -> List[str]:
     return edg_files
 
 
-def line_completion(directory_path: str):
-    input_files = get_python_files_in_directory(directory_path)
+def line_completion(directory_path: str, language: str):
+    """
+    Train next line suggestion model
+    
+    Args:
+        directory_path (str): path to root folder of code repo or code folder
+        language (str): Python/C++/Java/Scala/JavaScript/TypeScript/Dart/Rust/C#/Go
+    """
+    extensions = {
+        "Python": ".py",
+        "C++": ".cpp",
+        "Java": ".java",
+        "Scala": ".scala",
+        "JavaScript": ".js",
+        "TypeScript": ".ts",
+        "Dart": ".dart",
+        "Rust": ".rs",
+        "C#": ".cs",
+        "Go": ".go"
+    }
+    input_files = get_code_files_in_directory(directory_path, extensions[language])
     output_csv_path = "output_dataset.edg"
     datagen_line(input_files, output_csv_path)
 
@@ -274,29 +384,9 @@ def line_completion(directory_path: str):
     # Convert word vectors to float16 to reduce memory usage
     model.wv.vectors = model.wv.vectors.astype(np.float16)
     
-    model.save("small_model/graph_embeddings.model")
-
-
-def word_completion(directory_path: str):
-    input_files = get_python_files_in_directory(directory_path)
-    output_csv_path = "output_dataset.edg"
-    datagen(input_files, output_csv_path)
-
-    g = pecanpy.SparseOTF(p=1, q=0.5, workers=-1, verbose=True, extend=True)
-    g.read_edg("output_dataset.edg", weighted=True, directed=False)
-    
-    walks = g.simulate_walks(num_walks=200, walk_length=20)
-
-    model = Word2Vec(walks, hs=1, sg=1, vector_size=128, window=10, min_count=1, workers=4, epochs=1)
-    
-    print("Saving the model...")
-    # Convert word vectors to float16 to reduce memory usage
-    model.wv.vectors = model.wv.vectors.astype(np.float16)
-
-    # Save the model with reduced precision
-    model.save("graph_embeddings.model")
+    faiss_rocksdb_dump(model)
 
 
 # Example usage
-directory_path = "dataset/"  # Replace with your folder path
-line_completion(directory_path)
+directory_path = "test/"  # Replace with your folder path
+line_completion(directory_path, "Python")
